@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Scan stock QR{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:.5rem">Scan stock QR</h2>
+<p style="color:var(--muted);margin-bottom:1rem">Camera ले QR scan गर्नुहोस् वा token paste गर्नुहोस्। Qty हालेपछि stock बढ्छ।</p>
+<div class="panel" style="max-width:480px;margin-bottom:1rem">
+  <div class="panel-header">Camera scanner</div>
+  <div class="panel-body">
+    <div id="reader" style="width:100%"></div>
+    <p id="scanStatus" style="color:var(--muted);font-size:.85rem;margin-top:.5rem"></p>
+  </div>
+</div>
+<div class="panel" style="max-width:480px">
+  <div class="panel-header">Manual token / URL</div>
+  <div class="panel-body">
+    <form id="manualForm" style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <input id="manualToken" placeholder="Paste QR URL or token" style="flex:1;min-width:180px;padding:.45rem;border:1px solid var(--border);border-radius:8px">
+      <button type="submit" class="btn btn-primary">Open</button>
+    </form>
+  </div>
+</div>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function(){
+  function go(raw) {
+    raw = (raw || "").trim();
+    if (!raw) return;
+    var m = raw.match(/\/stock\/scan\/([A-Za-z0-9_\-]+)/);
+    var token = m ? m[1] : raw.replace(/^.*\//, "");
+    if (token) window.location = "/stock/scan/" + encodeURIComponent(token);
+  }
+  document.getElementById("manualForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    go(document.getElementById("manualToken").value);
+  });
+  var status = document.getElementById("scanStatus");
+  if (typeof Html5Qrcode === "undefined") {
+    status.textContent = "Scanner library not loaded — use manual token.";
+    return;
+  }
+  var scanner = new Html5Qrcode("reader");
+  Html5Qrcode.getCameras().then(function(cameras) {
+    if (!cameras || !cameras.length) {
+      status.textContent = "No camera — use manual token.";
+      return;
+    }
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 8, qrbox: { width: 220, height: 220 } },
+      function(decoded) {
+        status.textContent = "Scanned…";
+        scanner.stop().then(function(){ go(decoded); }).catch(function(){ go(decoded); });
+      },
+      function(){}
+    ).catch(function(err) {
+      status.textContent = "Camera error — use manual entry.";
+    });
+  }).catch(function() {
+    status.textContent = "Camera permission denied — use manual token.";
+  });
+})();
+</script>
+{% endblock %}

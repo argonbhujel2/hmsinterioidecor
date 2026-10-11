@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:.35rem">Dashboard</h2>
+<p style="color:var(--muted);margin-bottom:1.25rem">Urlabari Interior Decor · Stock &amp; HR · {{ today }}</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem">
+  {% if stats.get('total_items') is not none %}
+  <div class="panel" style="margin:0"><div class="panel-body" style="text-align:center">
+    <div style="font-size:1.6rem;font-weight:700">{{ stats.total_items }}</div>
+    <small>Stock items</small>
+  </div></div>
+  <div class="panel" style="margin:0"><div class="panel-body" style="text-align:center">
+    <div style="font-size:1.6rem;font-weight:700;color:{% if stats.low_stock %}#b91c1c{% else %}#15803d{% endif %}">{{ stats.low_stock }}</div>
+    <small>Low stock</small>
+  </div></div>
+  <div class="panel" style="margin:0"><div class="panel-body" style="text-align:center">
+    <div style="font-size:1.25rem;font-weight:700">Rs. {{ '%.0f'|format(stats.stock_value or 0) }}</div>
+    <small>Stock value (cost)</small>
+  </div></div>
+  {% endif %}
+  {% if stats.get('pending_leave') is not none %}
+  <div class="panel" style="margin:0"><div class="panel-body" style="text-align:center">
+    <div style="font-size:1.6rem;font-weight:700">{{ stats.pending_leave }}</div>
+    <small>Pending leave</small>
+  </div></div>
+  {% endif %}
+  {% if stats.get('online_staff') is not none %}
+  <div class="panel" style="margin:0"><div class="panel-body" style="text-align:center">
+    <div style="font-size:1.6rem;font-weight:700">{{ stats.online_staff }}</div>
+    <small>Online staff</small>
+  </div></div>
+  {% endif %}
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem">
+  {% if current_user.has_permission('stock.view') %}
+  <a href="{{ url_for('stock.list_items') }}" class="btn btn-primary">📦 Stock</a>
+  <a href="{{ url_for('stock.list_items', low=1) }}" class="btn btn-outline">Low stock</a>
+  {% endif %}
+  {% if current_user.has_permission('staff.view') %}
+  <a href="{{ url_for('staff.list_staff') }}" class="btn btn-outline">Staff</a>
+  <a href="{{ url_for('staff.attendance_report') }}" class="btn btn-outline">Attendance</a>
+  {% endif %}
+  <a href="{{ url_for('staff.my_attendance') }}" class="btn btn-outline">My attendance</a>
+</div>
+
+{% if recent %}
+<div class="panel">
+  <div class="panel-header">Recent activity</div>
+  <div class="panel-body table-wrap">
+    <table class="data">
+      <thead><tr><th>When</th><th>Action</th><th>Module</th></tr></thead>
+      <tbody>
+      {% for a in recent %}
+        <tr>
+          <td>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '—' }}</td>
+          <td>{{ a.action }}</td>
+          <td>{{ a.module or '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · Urlabari Interior Garden Staff Portal</title>
+  {% if hotel_settings and hotel_settings.favicon_path %}
+  <link rel="icon" href="{% if hotel_settings.favicon_path.startswith('http') %}{{ hotel_settings.favicon_path }}{% else %}{{ url_for('static', filename=hotel_settings.favicon_path) }}{% endif %}">
+  {% elif hotel_settings and hotel_settings.logo_path %}
+  <link rel="icon" href="{% if hotel_settings.logo_path.startswith('http') %}{{ hotel_settings.logo_path }}{% else %}{{ url_for('static', filename=hotel_settings.logo_path) }}{% endif %}">
+  {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+<div class="npt-clock-fixed" id="globalNptClock" title="Nepal Time">
+  <span class="npt-date js-npt-date" id="globalNptDate"></span>
+  <span class="npt-time js-npt-time" id="globalNptTime">--:--:--</span>
+</div>
+<style>
+.npt-clock-fixed{
+  position:fixed;top:.65rem;right:.75rem;z-index:10000;text-align:right;
+  font-variant-numeric:tabular-nums;background:rgba(255,255,255,.95);
+  border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:.4rem .65rem;
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+.npt-clock-fixed .npt-date{display:block;font-size:.7rem;color:#64748b}
+.npt-clock-fixed .npt-time{display:block;font-size:1.05rem;font-weight:700;color:#0f172a}
+</style>
+
+<div class="login-page">
+  <div class="login-box">
+    <div class="logo">
+      {% if hotel_settings and hotel_settings.logo_path %}
+      <img src="{% if hotel_settings.logo_path.startswith('http') %}{{ hotel_settings.logo_path }}{% else %}{{ url_for('static', filename=hotel_settings.logo_path) }}{% endif %}" alt="Logo" style="max-height:64px;max-width:180px;object-fit:contain;margin:0 auto .75rem;display:block">
+      {% else %}
+      <div class="mark">UID</div>
+      {% endif %}
+      <h2>{{ hotel_settings.hotel_name if hotel_settings else 'Urlabari Interior Decor' }}</h2>
+      <p class="sub">{{ hotel_settings.business_name if hotel_settings else 'Gypsum & Ceiling Solutions' }} · Staff Portal Login</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Username or Email</label>
+        <input type="text" name="username" required autofocus autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" required autocomplete="current-password">
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:.5rem">
+        <input type="checkbox" name="remember" id="remember" style="width:auto">
+        <label for="remember" style="margin:0">Remember me</label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+    </form>
+    <p style="text-align:center;margin-top:1.25rem;font-size:.75rem;color:#999">
+      Default: admin / admin123 — change after first login
+    </p>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/npt-clock.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,716 @@
+"""
+Urlabari Interior Decor — branded transactional emails.
+If MAIL_SERVER is not configured, emails are logged (not raised) so the app keeps working.
+"""
+from __future__ import annotations
+
+import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Optional
+
+from flask import current_app, render_template_string
+
+logger = logging.getLogger(__name__)
+
+# Shared branded shell
+EMAIL_SHELL = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f1ea;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1ea;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#111111 0%,#1c1c1c 60%,#2a2418 100%);padding:28px 28px 22px;text-align:center;">
+              <div style="display:inline-block;background:#c9a227;color:#111;font-weight:800;font-size:18px;width:48px;height:48px;line-height:48px;border-radius:12px;margin-bottom:12px;">HG</div>
+              <div style="color:#c9a227;font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px;">{{ hotel_name }}</div>
+              <div style="color:#ffffff;font-size:20px;font-weight:700;">{{ title }}</div>
+              <div style="color:#aaa;font-size:13px;margin-top:6px;">{{ business_name }}</div>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 28px 8px;color:#222;font-size:15px;line-height:1.6;">
+              <p style="margin:0 0 16px;">Dear <strong>{{ recipient_name }}</strong>,</p>
+              {{ body_html|safe }}
+            </td>
+          </tr>
+          {% if details %}
+          <tr>
+            <td style="padding:8px 28px 20px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8f5ed;border-radius:12px;border:1px solid #e8e2d4;">
+                {% for label, value in details %}
+                <tr>
+                  <td style="padding:12px 16px;border-bottom:1px solid #eee;color:#777;font-size:13px;width:40%;">{{ label }}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #eee;color:#111;font-size:14px;font-weight:600;text-align:right;">{{ value }}</td>
+                </tr>
+                {% endfor %}
+              </table>
+            </td>
+          </tr>
+          {% endif %}
+          {% if highlight %}
+          <tr>
+            <td style="padding:0 28px 24px;">
+              <div style="background:#111;color:#c9a227;text-align:center;padding:16px;border-radius:12px;font-size:18px;font-weight:700;">
+                {{ highlight }}
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          <tr>
+            <td style="padding:8px 28px 28px;color:#555;font-size:14px;line-height:1.55;">
+              <p style="margin:0 0 12px;">{{ closing }}</p>
+              <p style="margin:0;color:#999;font-size:12px;">If you have questions, contact the hotel administration.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background:#1c1c1c;padding:18px 28px;text-align:center;">
+              <div style="color:#c9a227;font-weight:700;font-size:13px;">{{ hotel_name }}</div>
+              <div style="color:#888;font-size:12px;margin-top:4px;">{{ business_name }} · {{ address }}</div>
+              <div style="color:#666;font-size:11px;margin-top:4px;">{{ phone }}{% if email %} · {{ email }}{% endif %}</div>
+              <div style="color:#555;font-size:10px;margin-top:10px;">This is an automated message from Urlabari Interior Decor HMS.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def _settings_ctx():
+    try:
+        from app.models.settings import BusinessSettings
+        s = BusinessSettings.get_settings()
+        return {
+            "hotel_name": s.hotel_name or "Urlabari Interior Decor",
+            "business_name": s.business_name or "Gypsum & Ceiling Solutions",
+            "address": s.address or "Urlabari-5, Morang",
+            "phone": s.phone or "9816374804",
+            "email": s.email or "",
+        }
+    except Exception:
+        return {
+            "hotel_name": "Urlabari Interior Decor",
+            "business_name": "Gypsum & Ceiling Solutions",
+            "address": "Urlabari-5, Morang",
+            "phone": "9816374804",
+            "email": "",
+        }
+
+
+def _hotel_logo_url():
+    try:
+        from app.models.settings import BusinessSettings
+        s = BusinessSettings.get_settings()
+        if s and s.logo_path:
+            if str(s.logo_path).startswith("http"):
+                return s.logo_path
+    except Exception:
+        pass
+    return ""
+
+
+def build_html(
+    *,
+    subject: str,
+    title: str,
+    recipient_name: str,
+    body_html: str,
+    details: Optional[list] = None,
+    highlight: Optional[str] = None,
+    closing: str = "Thank you — Urlabari Interior Decor",
+) -> str:
+    """Decorative HTML email with red / yellow / green brand bar."""
+    logo = ""
+    try:
+        from app.models.settings import BusinessSettings, SystemSetting
+        s = BusinessSettings.get_settings()
+        logo = (getattr(s, "logo_url", None) or "") if s else ""
+        if not logo:
+            try:
+                logo = SystemSetting.get("logo_url") or ""
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    logo_block = ""
+    if logo:
+        src = logo if str(logo).startswith("http") else logo
+        logo_block = f'<img src="{src}" alt="Urlabari Interior Decor" style="max-height:64px;width:auto;margin:0 auto 10px;display:block;border-radius:10px;background:#fff;padding:6px">'
+
+    rows = ""
+    if details:
+        for label, value in details:
+            rows += f"""<tr>
+              <td style="padding:8px 12px;font-size:13px;color:#5a6a80;border-bottom:1px solid #eef2ee">{label}</td>
+              <td style="padding:8px 12px;font-size:14px;color:#0a1628;font-weight:600;text-align:right;border-bottom:1px solid #eef2ee">{value}</td>
+            </tr>"""
+
+    details_block = ""
+    if rows:
+        details_block = f"""
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+          style="margin:16px 0;border:1px solid #e8eee6;border-radius:12px;overflow:hidden;background:#fafcf9">
+          {rows}
+        </table>"""
+
+    highlight_block = ""
+    if highlight:
+        highlight_block = f"""
+        <div style="margin:16px 0;padding:14px 18px;border-radius:12px;
+          background:linear-gradient(135deg,#fff8e6,#f0faf3);
+          border:1px solid #f0e0a8;text-align:center">
+          <span style="font-size:18px;font-weight:700;color:#0a1628;letter-spacing:0.03em">{highlight}</span>
+        </div>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{subject}</title></head>
+<body style="margin:0;padding:0;background:#eef2ec;font-family:'Segoe UI',Arial,Helvetica,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2ec;padding:28px 12px">
+<tr><td align="center">
+  <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+    style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 32px rgba(10,22,40,0.08)">
+    <tr><td style="height:5px;background:linear-gradient(90deg,#e6392b,#f4c430,#2d8a4e);font-size:0;line-height:0">&nbsp;</td></tr>
+    <tr><td style="padding:26px 28px 6px;text-align:center;background:linear-gradient(180deg,#ffffff 0%,#f9fbf7 100%)">
+      {logo_block}
+      <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#2d8a4e;font-weight:700;margin-bottom:4px">Urlabari Interior Decor</div>
+      <h1 style="margin:0;font-size:20px;color:#0a1628;font-weight:700">{title}</h1>
+      <p style="margin:6px 0 0;font-size:13px;color:#5a6a80">Hello {recipient_name or "Guest"}</p>
+    </td></tr>
+    <tr><td style="padding:12px 28px 8px">
+      <div style="height:1px;background:linear-gradient(90deg,transparent,#e6392b40,#f4c43080,#2d8a4e40,transparent)"></div>
+    </td></tr>
+    <tr><td style="padding:8px 28px 20px;color:#1a1a1a;font-size:15px;line-height:1.6">
+      {body_html}
+      {highlight_block}
+      {details_block}
+      <p style="margin:20px 0 0;font-size:13px;color:#5a6a80">{closing}</p>
+    </td></tr>
+    <tr><td style="padding:0 28px 24px">
+      <div style="background:#f4f8f3;border-radius:12px;padding:14px 16px;text-align:center;border:1px solid #e0eae0">
+        <p style="margin:0;font-size:12px;color:#5a6a80;line-height:1.5">
+          Urlabari-5, Morang, Nepal<br>
+          <span style="color:#2d8a4e">Gypsum &amp; Ceiling Solutions</span>
+        </p>
+      </div>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#2d8a4e,#f4c430,#e6392b);font-size:0">&nbsp;</td></tr>
+  </table>
+  <p style="margin:14px 0 0;font-size:11px;color:#9aa5b5;text-align:center">This is an automated message from Urlabari Interior Decor HMS</p>
+</td></tr>
+</table>
+</body></html>"""
+
+
+
+def send_email(to_address: str, subject: str, html_body: str, text_fallback: str = "") -> bool:
+    if not to_address or "@" not in to_address:
+        logger.info("Email skipped (no valid address): %s", subject)
+        return False
+
+    server = current_app.config.get("MAIL_SERVER")
+    if not server:
+        logger.info(
+            "[EMAIL-DRY-RUN] To=%s Subject=%s\n%s",
+            to_address,
+            subject,
+            text_fallback or subject,
+        )
+        return False
+
+    port = int(current_app.config.get("MAIL_PORT") or 587)
+    use_tls = current_app.config.get("MAIL_USE_TLS", True)
+    username = current_app.config.get("MAIL_USERNAME")
+    password = current_app.config.get("MAIL_PASSWORD")
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or username or "info@urlabariinterior.com.np"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"Urlabari Interior Decor <{sender}>"
+    msg["To"] = to_address
+    if text_fallback:
+        msg.attach(MIMEText(text_fallback, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(server, port, timeout=20) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if username and password:
+                smtp.login(username, password)
+            smtp.sendmail(sender, [to_address], msg.as_string())
+        logger.info("Email sent to %s: %s", to_address, subject)
+        return True
+    except Exception as e:
+        logger.exception("Email failed to %s: %s", to_address, e)
+        return False
+
+
+def notify(to_user, event: str, **kwargs) -> bool:
+    """
+    High-level notify by event key.
+    to_user: User model or object with .email, .full_name
+    """
+    if not to_user:
+        return False
+    email = getattr(to_user, "email", None)
+    name = getattr(to_user, "full_name", None) or getattr(to_user, "username", "Staff")
+
+    builders = {
+        "salary_increment": _salary_increment,
+        "salary_payment": _salary_payment,
+        "payroll_finalized": _payroll_finalized,
+        "leave_submitted": _leave_submitted,
+        "leave_approved": _leave_decision,
+        "leave_rejected": _leave_decision,
+        "attendance_approved": _attendance_decision,
+        "attendance_rejected": _attendance_decision,
+        "break_submitted": _break_submitted,
+        "break_approved": _break_decision,
+        "break_rejected": _break_decision,
+        "overtime_submitted": _overtime_submitted,
+        "overtime_approved": _overtime_decision,
+        "overtime_rejected": _overtime_decision,
+        "consumption_submitted": _consumption_submitted,
+        "consumption_approved": _consumption_decision,
+        "consumption_rejected": _consumption_decision,
+        "password_reset": _password_reset,
+        "welcome_staff": _welcome_staff,
+        "bill_receipt": _bill_receipt,
+        "order_received": _order_received,
+        "admin_new_order": _admin_new_order,
+        "admin_new_booking": _admin_new_booking,
+    }
+    fn = builders.get(event)
+    if not fn:
+        logger.warning("Unknown email event: %s", event)
+        return False
+    subject, html, text = fn(name=name, **kwargs)
+    return send_email(email, subject, html, text)
+
+
+# ---------- event builders ----------
+
+def _salary_increment(name, **kw):
+    prev_b = kw.get("previous_basic", "—")
+    new_b = kw.get("new_basic", "—")
+    prev_a = kw.get("previous_allowance", "—")
+    new_a = kw.get("new_allowance", "—")
+    amount = kw.get("increment_amount", "—")
+    percent = kw.get("increment_percent", "—")
+    effective = kw.get("effective_from", "—")
+    reason = kw.get("reason") or "Performance & growth recognition"
+    subject = "Salary Increment — Urlabari Interior Decor"
+    body = f"""
+      <p>We are pleased to inform you that your salary has been <strong style="color:#c9a227;">incremented</strong>.</p>
+      <p style="color:#555;">{reason}</p>
+    """
+    details = [
+        ("Previous Basic", f"Rs. {prev_b}"),
+        ("New Basic", f"Rs. {new_b}"),
+        ("Previous Allowance", f"Rs. {prev_a}"),
+        ("New Allowance", f"Rs. {new_a}"),
+        ("Increment Amount", f"Rs. {amount}"),
+        ("Increment %", f"{percent}%"),
+        ("Effective From", str(effective)),
+    ]
+    highlight = f"New Basic: Rs. {new_b}"
+    html = build_html(
+        subject=subject,
+        title="Salary Increment",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight=highlight,
+        closing="Congratulations! We value your contribution to Urlabari Interior Decor.",
+    )
+    text = f"Salary increment for {name}. New basic Rs. {new_b} effective {effective}."
+    return subject, html, text
+
+
+def _salary_payment(name, **kw):
+    amount = kw.get("amount", "—")
+    month = kw.get("month", "—")
+    method = kw.get("method", "—")
+    remaining = kw.get("remaining", "—")
+    subject = f"Salary Payment Received — {month}"
+    body = "<p>A salary payment has been recorded for your account.</p>"
+    details = [
+        ("Salary Month", str(month)),
+        ("Amount Paid", f"Rs. {amount}"),
+        ("Payment Method", str(method)),
+        ("Remaining", f"Rs. {remaining}"),
+    ]
+    html = build_html(
+        subject=subject,
+        title="Salary Payment",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight=f"Paid: Rs. {amount}",
+        closing="Thank you for your hard work.",
+    )
+    return subject, html, f"Salary payment Rs. {amount} for {month}."
+
+
+def _payroll_finalized(name, **kw):
+    """Payslip-style payroll notification email."""
+    month = kw.get("month", "—")
+    net = kw.get("net_payable", "—")
+    basic = kw.get("basic", kw.get("basic_salary", "—"))
+    allowance = kw.get("allowance", "—")
+    ot_pay = kw.get("ot_pay", "—")
+    gross = kw.get("gross_earnings", "—")
+    total_deduction = kw.get("total_deduction", "—")
+    unpaid = kw.get("unpaid_leave_deduction", "—")
+    late = kw.get("late_deduction", "—")
+    food = kw.get("food_deduction", "—")
+    fine = kw.get("fine_deduction", "—")
+    advance = kw.get("advance_deduction", "—")
+    other = kw.get("other_deduction", "—")
+    total_paid = kw.get("total_paid", "—")
+    remaining = kw.get("remaining", "—")
+    working_days = kw.get("working_days", "—")
+    hotel = kw.get("hotel_name", "Urlabari Interior Decor")
+
+    subject = f"Payslip — {month} | {hotel}"
+    body = f"""
+      <p>Dear <strong>{name}</strong>,</p>
+      <p>Your <strong>monthly payroll</strong> for <strong>{month}</strong> has been finalized.
+      Below is a summary of your payslip.</p>
+    """
+    details = [
+        ("Employee", str(name)),
+        ("Salary Month", str(month)),
+        ("Working Days", str(working_days)),
+        ("Basic Salary", f"Rs. {basic}"),
+        ("Allowance", f"Rs. {allowance}"),
+        ("OT Pay", f"Rs. {ot_pay}"),
+        ("Gross Earnings", f"Rs. {gross}"),
+        ("Unpaid Leave Deduction", f"Rs. {unpaid}"),
+        ("Late Deduction", f"Rs. {late}"),
+        ("Food Deduction", f"Rs. {food}"),
+        ("Fine Deduction", f"Rs. {fine}"),
+        ("Advance Deduction", f"Rs. {advance}"),
+        ("Other Deduction", f"Rs. {other}"),
+        ("Total Deductions", f"Rs. {total_deduction}"),
+        ("Net Payable", f"Rs. {net}"),
+        ("Already Paid", f"Rs. {total_paid}"),
+        ("Remaining", f"Rs. {remaining}"),
+    ]
+    html = build_html(
+        subject=subject,
+        title=f"Payslip — {month}",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight=f"Net Payable: Rs. {net}",
+        closing="This is a system-generated payslip notification from Urlabari Interior Decor HR. Please contact accounts if you have questions.",
+    )
+    text = (
+        f"Payslip {month} for {name}. Basic Rs. {basic}, Gross Rs. {gross}, "
+        f"Deductions Rs. {total_deduction}, Net Payable Rs. {net}."
+    )
+    return subject, html, text
+
+
+def _leave_submitted(name, **kw):
+    subject = "Leave Request Submitted"
+    body = "<p>Your leave request has been submitted and is awaiting approval.</p>"
+    details = [
+        ("Leave Date", str(kw.get("leave_date", "—"))),
+        ("Type / Mode", str(kw.get("mode", "—"))),
+        ("Reason", str(kw.get("reason", "—"))),
+    ]
+    html = build_html(subject=subject, title="Leave Submitted", recipient_name=name, body_html=body, details=details)
+    return subject, html, "Leave request submitted."
+
+
+def _leave_decision(name, **kw):
+    status = kw.get("status", "updated")
+    approved = status == "approved"
+    subject = f"Leave Request {status.title()}"
+    body = f"<p>Your leave request has been <strong>{status}</strong>.</p>"
+    details = [
+        ("Leave Date", str(kw.get("leave_date", "—"))),
+        ("Status", status.title()),
+        ("Note", str(kw.get("note", "—"))),
+    ]
+    html = build_html(
+        subject=subject,
+        title=f"Leave {status.title()}",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight="Approved" if approved else "Rejected",
+    )
+    return subject, html, f"Leave {status}."
+
+
+def _attendance_decision(name, **kw):
+    status = kw.get("status", "updated")
+    subject = f"Attendance {status.title()}"
+    body = f"<p>Your attendance record has been <strong>{status}</strong>.</p>"
+    details = [("Date", str(kw.get("date", "—"))), ("Status", status.title())]
+    html = build_html(subject=subject, title=f"Attendance {status.title()}", recipient_name=name, body_html=body, details=details)
+    return subject, html, f"Attendance {status}."
+
+
+def _break_submitted(name, **kw):
+    subject = "Break Request Submitted"
+    body = "<p>Your break request has been submitted for approval.</p>"
+    details = [("Date", str(kw.get("date", "—"))), ("Duration", str(kw.get("duration", "—")))]
+    html = build_html(subject=subject, title="Break Submitted", recipient_name=name, body_html=body, details=details)
+    return subject, html, "Break submitted."
+
+
+def _break_decision(name, **kw):
+    status = kw.get("status", "updated")
+    subject = f"Break Request {status.title()}"
+    body = f"<p>Your break request has been <strong>{status}</strong>.</p>"
+    details = [("Date", str(kw.get("date", "—"))), ("Status", status.title())]
+    html = build_html(subject=subject, title=f"Break {status.title()}", recipient_name=name, body_html=body, details=details)
+    return subject, html, f"Break {status}."
+
+
+def _overtime_submitted(name, **kw):
+    subject = "Overtime Request Submitted"
+    body = "<p>Your overtime request has been submitted for approval.</p>"
+    details = [("Date", str(kw.get("date", "—"))), ("Hours", str(kw.get("hours", "—"))), ("Reason", str(kw.get("reason", "—")))]
+    html = build_html(subject=subject, title="Overtime Submitted", recipient_name=name, body_html=body, details=details)
+    return subject, html, "OT submitted."
+
+
+def _overtime_decision(name, **kw):
+    status = kw.get("status", "updated")
+    subject = f"Overtime {status.title()}"
+    body = f"<p>Your overtime request has been <strong>{status}</strong>.</p>"
+    details = [("Date", str(kw.get("date", "—"))), ("Hours", str(kw.get("hours", "—"))), ("Status", status.title())]
+    html = build_html(subject=subject, title=f"Overtime {status.title()}", recipient_name=name, body_html=body, details=details)
+    return subject, html, f"OT {status}."
+
+
+def _consumption_submitted(name, **kw):
+    subject = "Hotel Consumption Submitted"
+    body = "<p>Your hotel consumption request has been submitted for approval.</p>"
+    details = [("Item", str(kw.get("item", "—"))), ("Amount", f"Rs. {kw.get('amount', '—')}")]
+    html = build_html(subject=subject, title="Consumption Submitted", recipient_name=name, body_html=body, details=details)
+    return subject, html, "Consumption submitted."
+
+
+def _consumption_decision(name, **kw):
+    status = kw.get("status", "updated")
+    subject = f"Consumption {status.title()}"
+    body = f"<p>Your consumption request has been <strong>{status}</strong>.</p>"
+    details = [("Item", str(kw.get("item", "—"))), ("Amount", f"Rs. {kw.get('amount', '—')}"), ("Status", status.title())]
+    html = build_html(subject=subject, title=f"Consumption {status.title()}", recipient_name=name, body_html=body, details=details)
+    return subject, html, f"Consumption {status}."
+
+
+def _password_reset(name, **kw):
+    username = kw.get("username", "—")
+    password = kw.get("password", "—")
+    login_url = kw.get("login_url", "https://staff.urlabariinterior.com.np/login")
+    subject = "Password Reset — Urlabari Interior Decor HMS"
+    body = f"""
+      <p>Your HMS password has been <strong>reset</strong> by an administrator.</p>
+      <p>Please sign in with the new credentials below and change your password after login.</p>
+    """
+    details = [
+        ("Username", str(username)),
+        ("New Password", str(password)),
+        ("Login URL", str(login_url)),
+    ]
+    html = build_html(
+        subject=subject,
+        title="Password Reset",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight=f"Username: {username}",
+        closing="For security, do not share your password. Change it after first login.",
+    )
+    return subject, html, f"Password reset. Username {username}."
+
+
+def _welcome_staff(name, **kw):
+    username = kw.get("username", "—")
+    password = kw.get("password", "—")
+    login_url = kw.get("login_url", "https://staff.urlabariinterior.com.np/login")
+    subject = "Welcome to Urlabari Interior Decor — HMS Login"
+    body = f"""
+      <p>Welcome to the team! Your <strong>Urlabari Interior Decor HMS</strong> account has been created.</p>
+      <p>Use the credentials below to sign in:</p>
+    """
+    details = [
+        ("Username", str(username)),
+        ("Password", str(password)),
+        ("Login URL", str(login_url)),
+    ]
+    html = build_html(
+        subject=subject,
+        title="Welcome Aboard",
+        recipient_name=name,
+        body_html=body,
+        details=details,
+        highlight=f"Username: {username}",
+        closing="Please change your password after first login. Do not share these credentials.",
+    )
+    return subject, html, f"Welcome {name}. Username {username}."
+
+
+def _bill_receipt(name, **kw):
+    bill_number = kw.get("bill_number", "—")
+    total = kw.get("total", "—")
+    method = kw.get("payment_method", "—")
+    source = kw.get("source", "—")
+    items_html = kw.get("items_html", "")
+    subject = f"Bill {bill_number} — Urlabari Interior Decor"
+    body = f"""
+      <p>Thank you for dining / staying with us.</p>
+      <p>Your bill <strong>{bill_number}</strong> has been completed.</p>
+      {items_html}
+    """
+    details = [
+        ("Bill No.", str(bill_number)),
+        ("Source", str(source)),
+        ("Payment", str(method)),
+        ("Total", f"Rs. {total}"),
+    ]
+    html = build_html(
+        subject=subject,
+        title=f"Bill {bill_number}",
+        recipient_name=name or "Guest",
+        body_html=body,
+        details=details,
+        highlight=f"Total: Rs. {total}",
+        closing="Thank you — Urlabari Interior Decor, Urlabari.",
+    )
+    return subject, html, f"Bill {bill_number} total Rs. {total}."
+
+
+def _order_received(name, **kw):
+    order_number = kw.get("order_number", "—")
+    total = kw.get("total", "—")
+    source = kw.get("source", "—")
+    items_html = kw.get("items_html", "")
+    subject = f"Order received — {order_number} | Urlabari Interior Decor"
+    body = f"""
+      <p>Thank you! We have <strong>received your order</strong>.</p>
+      <p>Our kitchen is preparing it now.</p>
+      {items_html}
+    """
+    details = [
+        ("Order No.", str(order_number)),
+        ("Source", str(source)),
+        ("Total", f"Rs. {total}"),
+    ]
+    html = build_html(
+        subject=subject,
+        title="Order Received",
+        recipient_name=name or "Guest",
+        body_html=body,
+        details=details,
+        highlight=f"Order {order_number}",
+        closing="— Urlabari Interior Decor, Urlabari",
+    )
+    return subject, html, f"Order {order_number} received. Total Rs. {total}."
+
+
+def get_admin_emails():
+    """Business + staff with admin role emails."""
+    emails = set()
+    emails.add("info@urlabariinterior.com.np")
+    try:
+        from app.models.settings import BusinessSettings
+        s = BusinessSettings.get_settings()
+        if s and getattr(s, "email", None):
+            emails.add(s.email.strip())
+        if s and getattr(s, "notification_email", None):
+            emails.add(s.notification_email.strip())
+    except Exception:
+        pass
+    try:
+        from app.models.user import User
+        for u in User.query.filter(User.is_active == True).all():
+            if getattr(u, "email", None) and (
+                getattr(u, "role_code", None) in ("super_admin", "admin")
+                or getattr(u, "is_admin", False)
+            ):
+                emails.add(u.email.strip())
+    except Exception:
+        pass
+    return [e for e in emails if e and "@" in e]
+
+
+def notify_admin(event: str, **kwargs) -> bool:
+    """Email all admin addresses for operational events."""
+    ok = False
+    for email in get_admin_emails():
+        class _A:
+            pass
+        a = _A()
+        a.email = email
+        a.full_name = "Admin"
+        try:
+            if notify(a, event, **kwargs):
+                ok = True
+        except Exception:
+            pass
+    return ok
+
+
+def _admin_new_order(name, **kw):
+    order_number = kw.get("order_number", "—")
+    total = kw.get("total", "—")
+    source = kw.get("source", "—")
+    guest = kw.get("guest", "—")
+    subject = f"[HMS] New order {order_number}"
+    body = f"<p>New order received.</p><p>Guest: <strong>{guest}</strong></p>"
+    details = [
+        ("Order", str(order_number)),
+        ("Source", str(source)),
+        ("Total", f"Rs. {total}"),
+        ("Guest", str(guest)),
+    ]
+    html = build_html(subject=subject, title="New Order", recipient_name=name or "Admin",
+                      body_html=body, details=details, highlight=str(order_number),
+                      closing="— Urlabari Interior HMS")
+    return subject, html, f"New order {order_number}"
+
+
+def _admin_new_booking(name, **kw):
+    ref = kw.get("ref", "—")
+    guest = kw.get("guest", "—")
+    check_in = kw.get("check_in", "—")
+    check_out = kw.get("check_out", "—")
+    room = kw.get("room", "—")
+    subject = f"[HMS] New booking {ref}"
+    body = f"<p>New room booking.</p><p>Guest: <strong>{guest}</strong></p>"
+    details = [
+        ("Ref", str(ref)),
+        ("Guest", str(guest)),
+        ("Room", str(room)),
+        ("Check-in", str(check_in)),
+        ("Check-out", str(check_out)),
+    ]
+    html = build_html(subject=subject, title="New Booking", recipient_name=name or "Admin",
+                      body_html=body, details=details, highlight=str(ref),
+                      closing="— Urlabari Interior HMS")
+    return subject, html, f"New booking {ref}"

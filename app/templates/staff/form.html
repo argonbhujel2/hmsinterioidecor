@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if user else 'Add' }} Staff{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:640px">
+  <div class="panel-header">{{ 'Edit' if user else 'Add' }} Staff</div>
+  <div class="panel-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-group"><label>Full Name</label><input name="full_name" value="{{ user.full_name if user else '' }}" required></div>
+        {% if not user %}
+        <div class="form-group"><label>Username</label><input name="username" required></div>
+        {% endif %}
+        <div class="form-group"><label>Email</label><input name="email" type="email" value="{{ user.email if user else '' }}" required></div>
+        <div class="form-group"><label>Phone</label><input name="phone" value="{{ user.phone if user else '' }}"></div>
+        <div class="form-group"><label>Employee ID</label><input name="employee_id" value="{{ user.employee_id if user else '' }}"></div>
+        <div class="form-group"><label>Department</label><input name="department" value="{{ user.department if user else '' }}"></div>
+        <div class="form-group"><label>Role</label>
+          <select name="role_id" required>
+            {% for r in roles %}
+            <option value="{{ r.id }}" {% if user and user.role_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if not user %}
+        <div class="form-group"><label>Password</label><input name="password" type="password" value="changeme123"></div>
+        <div class="form-group"><label>Basic Salary</label><input name="basic_salary" type="number" step="0.01"></div>
+        <div class="form-group"><label>Allowance</label><input name="allowance" type="number" step="0.01" value="0"></div>
+        <div class="form-group"><label>Work Start (optional)</label><input name="work_start" placeholder="10:00"></div>
+        <div class="form-group"><label>Work End (optional)</label><input name="work_end" placeholder="18:00"></div>
+        <div class="form-group"><label>Required Daily Hours</label><input name="required_daily_hours" type="number" step="0.5" placeholder="8"></div>
+        {% endif %}
+      </div>
+
+      <h4 style="margin:1.25rem 0 .5rem;font-size:1rem">Payment Account <span style="color:var(--muted);font-weight:400;font-size:.85rem">(Bank or Wallet — at least one required)</span></h4>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Bank Name</label>
+          <input name="bank_name" placeholder="e.g. Nabil, NIC Asia"
+            value="{{ user.salary_profile.bank_name if user and user.salary_profile else '' }}">
+        </div>
+        <div class="form-group">
+          <label>Bank Account Number</label>
+          <input name="bank_account_number" placeholder="Account number"
+            value="{{ user.salary_profile.bank_account_number if user and user.salary_profile else '' }}">
+        </div>
+        <div class="form-group">
+          <label>Wallet Provider</label>
+          <select name="wallet_provider">
+            {% set wp = user.salary_profile.wallet_provider if user and user.salary_profile else '' %}
+            <option value="">— Select —</option>
+            <option value="eSewa" {% if wp == 'eSewa' %}selected{% endif %}>eSewa</option>
+            <option value="Khalti" {% if wp == 'Khalti' %}selected{% endif %}>Khalti</option>
+            <option value="Fonepay" {% if wp == 'Fonepay' %}selected{% endif %}>Fonepay</option>
+            <option value="IME Pay" {% if wp == 'IME Pay' %}selected{% endif %}>IME Pay</option>
+            <option value="Other" {% if wp == 'Other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Wallet Account / Mobile Number</label>
+          <input name="wallet_account_number" placeholder="e.g. 98xxxxxxxx"
+            value="{{ user.salary_profile.wallet_account_number if user and user.salary_profile else '' }}">
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin:.25rem 0 1rem">Salary payout का लागि Bank account <strong>वा</strong> Wallet number मध्ये कम्तिमा एक चाहिन्छ।</p>
+
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if user else 'Create' }}</button>
+      {% if user %}
+      <a href="{{ url_for('staff.profile', uid=user.id) }}" class="btn btn-outline">Cancel</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

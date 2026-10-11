@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if room else 'Add' }} Room{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Edit' if room else 'Add' }} room (QR)</h1>
+  <a href="{{ url_for('rooms.list_rooms') }}" class="btn btn-outline">Back</a>
+</div>
+<p class="muted" style="margin-bottom:1rem">HMS rooms are for <strong>QR ordering only</strong>. Website rooms are managed in Public Admin.</p>
+<div class="panel" style="max-width:480px">
+  <div class="panel-body">
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Room number *</label>
+        <input name="number" required value="{{ room.number if room else '' }}" placeholder="e.g. 101">
+      </div>
+      <div class="form-group">
+        <label>Floor</label>
+        <input name="floor" value="{{ room.floor if room else '' }}" placeholder="e.g. 1, 2, Ground">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          {% for s in ['available','occupied','reserved','maintenance','disabled'] %}
+          <option value="{{ s }}" {% if room and room.status==s %}selected{% endif %}>{{ s|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <input type="hidden" name="room_type" value="{{ room.room_type if room else 'Standard' }}">
+      <input type="hidden" name="price" value="{{ room.price if room else '0' }}">
+      <p class="muted" style="font-size:.85rem">Website visibility is off by default. Public site rooms come from Public Admin only.</p>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{{ url_for('rooms.list_rooms') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Staff{% endblock %} · {{ hotel_settings.hotel_name if hotel_settings else 'Urlabari Interior Decor' }}</title>
+  {% if hotel_settings and hotel_settings.favicon_path %}
+  {% if hotel_settings.favicon_path.startswith('http') %}
+  <link rel="icon" href="{{ hotel_settings.favicon_path }}">
+  {% else %}
+  <link rel="icon" href="{{ url_for('static', filename=hotel_settings.favicon_path) }}">
+  {% endif %}
+  {% elif hotel_settings and hotel_settings.logo_path %}
+  {% if hotel_settings.logo_path.startswith('http') %}
+  <link rel="icon" href="{{ hotel_settings.logo_path }}">
+  {% else %}
+  <link rel="icon" href="{{ url_for('static', filename=hotel_settings.logo_path) }}">
+  {% endif %}
+  {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <link rel="manifest" href="{{ url_for('pwa.manifest') }}">
+  <link rel="apple-touch-icon" href="{% if hotel_settings and hotel_settings.logo_path %}{% if hotel_settings.logo_path.startswith('http') %}{{ hotel_settings.logo_path }}{% else %}{{ url_for('static', filename=hotel_settings.logo_path) }}{% endif %}{% else %}{{ url_for('static', filename='img/icon-192.png') }}{% endif %}">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  {% if vapid_public_key %}<meta name="vapid-public-key" content="{{ vapid_public_key }}">{% endif %}
+  {% block head %}{% endblock %}
+  <style>
+  .topbar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+  .topbar .user-info{flex:1;min-width:0}
+  .npt-clock{
+    margin-left:auto;text-align:right;font-variant-numeric:tabular-nums;
+    line-height:1.2;padding:.25rem .5rem;border-radius:8px;background:rgba(0,0,0,.04);
+  }
+  .npt-clock .npt-date{display:block;font-size:.72rem;color:var(--muted,#64748b);white-space:nowrap}
+  .npt-clock .npt-time{display:block;font-size:1rem;font-weight:700;letter-spacing:.02em;color:var(--text,#0f172a)}
+  .npt-clock-fixed{
+    position:fixed;top:.65rem;right:.75rem;z-index:10000;
+    text-align:right;font-variant-numeric:tabular-nums;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(6px);
+    border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:.4rem .65rem;
+    box-shadow:0 4px 14px rgba(0,0,0,.06);
+  }
+  .npt-clock-fixed .npt-date{font-size:.7rem;color:#64748b}
+  .npt-clock-fixed .npt-time{font-size:1.05rem;font-weight:700;color:#0f172a}
+  </style>
+</head>
+
+<div id="pwaSplash" class="pwa-splash no-print" aria-hidden="true">
+  <div class="pwa-splash-inner">
+    {% if hotel_settings and hotel_settings.logo_path %}
+    <img src="{% if hotel_settings.logo_path.startswith('http') %}{{ hotel_settings.logo_path }}{% else %}{{ url_for('static', filename=hotel_settings.logo_path) }}{% endif %}" alt="Logo" class="pwa-splash-logo">
+    {% else %}
+    <div class="pwa-splash-mark">UID</div>
+    {% endif %}
+    <div class="pwa-splash-name">{{ hotel_settings.hotel_name if hotel_settings else 'Urlabari Interior Decor' }}</div>
+    <div class="pwa-splash-sub">Loading…</div>
+  </div>
+</div>
+<style>
+.pwa-splash{position:fixed;inset:0;z-index:99999;background:#f8f5ed;display:flex;align-items:center;justify-content:center;transition:opacity .35s ease,visibility .35s}
+.pwa-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
+.pwa-splash-inner{text-align:center;padding:1.5rem}
+.pwa-splash-logo{width:96px;height:96px;object-fit:contain;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.pwa-splash-mark{width:96px;height:96px;margin:0 auto;border-radius:20px;background:#1c1c1c;color:#c9a227;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.5rem}
+.pwa-splash-name{margin-top:1rem;font-weight:700;color:#1c1c1c;font-size:1.1rem}
+.pwa-splash-sub{margin-top:.35rem;color:#888;font-size:.9rem}
+</style>
+<script>
+(function(){
+  var el = document.getElementById('pwaSplash');
+  if (!el) return;
+  function hide(){ el.classList.add('hide'); setTimeout(function(){ el.remove(); }, 400); }
+  if (document.readyState === 'complete') setTimeout(hide, 400);
+  else window.addEventListener('load', function(){ setTimeout(hide, 500); });
+  setTimeout(hide, 2500);
+})();
+</script>
+
+<body{% if current_user.is_authenticated and current_user.role %} data-role="{{ current_user.role.code }}"{% endif %}>
+{% if current_user.is_authenticated %}
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      {% if hotel_settings and hotel_settings.logo_path %}
+      <img src="{% if hotel_settings.logo_path.startswith('http') %}{{ hotel_settings.logo_path }}{% else %}{{ url_for('static', filename=hotel_settings.logo_path) }}{% endif %}" alt="Logo" style="width:36px;height:36px;object-fit:contain;border-radius:8px;background:#fff">
+      {% elif hotel_settings and hotel_settings.favicon_path %}
+      <img src="{{ hotel_settings.favicon_path if hotel_settings.favicon_path.startswith('http') else url_for('static', filename=hotel_settings.favicon_path) }}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:8px">
+      {% else %}
+      <div class="brand-mark">UID</div>
+      {% endif %}
+      <div>
+        <h1>{{ hotel_settings.hotel_name if hotel_settings else 'Urlabari Interior' }}</h1>
+        <small>Staff & Stock</small>
+      </div>
+    </div>
+    <nav>
+      {% if current_user.has_permission('dashboard.view') %}
+      <a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint == 'dashboard.index' %}active{% endif %}">Dashboard</a>
+      {% endif %}
+      {% if current_user.has_permission('stock.view') %}
+      <a href="{{ url_for('stock.list_items') }}" class="{% if request.endpoint and request.endpoint.startswith('stock.') %}active{% endif %}">Stock</a>
+      {% endif %}
+      <div class="nav-section">Operations</div>
+      {% if false and current_user.has_permission('rooms.view') %}
+      <a href="{{ url_for('rooms.list_rooms') }}">Rooms</a>
+      {% if false and current_user.has_permission('rooms.status') or (current_user.role and current_user.role.code == 'housekeeping') %}
+      <a href="{{ url_for('housekeeping.home') }}">Housekeeping</a>
+      {% endif %}
+      {% if false and current_user.has_permission('rooms.status') %}
+      <a href="{{ url_for('housekeeping.assign') }}">Assign cleaning</a>
+      {% endif %}
+      <a href="{{ url_for('rooms.list_tables') }}">Tables</a>
+      <a href="{{ url_for('rooms.qr_list') }}">QR Codes</a>
+      {% endif %}
+      {% if false and current_user.has_permission('bookings.view') %}
+      <a href="{{ url_for('bookings.list_bookings') }}">Bookings</a>
+      {% endif %}
+      {% if false and current_user.has_permission('menu.view') %}
+      <a href="{{ url_for('menu.list_items') }}">Menu</a>
+      {% endif %}
+      {% if false and current_user.has_permission('orders.view') %}
+      <a href="{{ url_for('orders.list_orders') }}">Orders <span id="newOrdersBadge" data-count="0" class="badge badge-new" style="margin-left:auto">0</span></a>
+      {% endif %}
+      {% if false and current_user.has_permission('kitchen.view') %}
+      <a href="{{ url_for('kitchen.index') }}">Kitchen / KOT</a>
+      {% endif %}
+      {# POS removed — use Manual Order + Billing #}
+      {% if false and current_user.has_permission('billing.view') %}
+      <a href="{{ url_for('billing.list_bills') }}">Billing</a>
+      {% endif %}
+      <div class="nav-section">HR & Payroll</div>
+      {% if current_user.has_permission('staff.view') %}
+      <a href="{{ url_for('staff.list_staff') }}">Staff</a>
+      {% endif %}
+      {% if current_user.has_permission('staff.view') %}
+      <a href="{{ url_for('staff.attendance_report') }}">Staff Attendance</a>
+      <a href="{{ url_for('staff.attendance_logs') }}">Attendance Logs</a>
+      {% endif %}
+      <a href="{{ url_for('staff.my_attendance') }}">My Attendance</a>
+      <a href="{{ url_for('staff.request_leave') }}">Leave</a>
+      <a href="{{ url_for('staff.request_overtime') }}">Overtime</a>
+      {% if current_user.has_permission('salary.view') %}
+      <a href="{{ url_for('payroll.index') }}">Payroll</a>
+      {% endif %}
+      {% if current_user.has_permission('sessions.view') %}
+      <a href="{{ url_for('staff.live_sessions') }}">Live Sessions</a>
+      {% endif %}
+      {% if current_user.has_permission('settings.view') %}
+      <div class="nav-section">System</div>
+      <a href="{{ url_for('settings.index') }}">Settings</a>
+      {% endif %}
+      <div class="nav-section">Account</div>
+      <a href="{{ url_for('auth.change_password') }}">Change Password</a>
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+      <div class="user-info">
+        <strong>{{ current_user.full_name }}</strong>
+        · {{ current_user.role.name if current_user.role else '' }}
+      </div>
+      <div class="npt-clock" id="globalNptClock" title="वि.सं. (Bikram Sambat) · Nepal Time">
+        <span class="npt-date" id="globalNptDate"></span>
+        <span class="npt-time" id="globalNptTime">--:--:--</span>
+      </div>
+    </header>
+    <main class="content">
+      <div class="alerts no-print">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+      </div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+{# ── Mobile / PWA bottom navigation (permission-based) ── #}
+<nav class="bottom-nav no-print" id="bottomNav" aria-label="App navigation">
+  {% if current_user.has_permission('dashboard.view') %}
+  <a href="{{ url_for('dashboard.index') }}" class="bn-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+    <span class="bn-ico">🏠</span><span class="bn-lbl">Home</span>
+  </a>
+  {% endif %}
+  {% if current_user.has_permission('stock.view') %}
+  <a href="{{ url_for('stock.list_items') }}" class="bn-item {% if request.endpoint and request.endpoint.startswith('stock.') %}active{% endif %}">
+    <span class="bn-ico">📦</span><span class="bn-lbl">Stock</span>
+  </a>
+  {% endif %}
+  {% if current_user.has_permission('stock.edit') %}
+  <a href="{{ url_for('stock.add_item') }}" class="bn-fab" title="Add stock"><span class="bn-fab-plus">＋</span></a>
+  {% else %}
+  <a href="{{ url_for('staff.my_attendance') }}" class="bn-fab" title="Attendance"><span class="bn-fab-plus">⏱</span></a>
+  {% endif %}
+  {% if current_user.has_permission('staff.view') %}
+  <a href="{{ url_for('staff.list_staff') }}" class="bn-item"><span class="bn-ico">👥</span><span class="bn-lbl">Staff</span></a>
+  {% else %}
+  <a href="{{ url_for('staff.my_attendance') }}" class="bn-item"><span class="bn-ico">⏱</span><span class="bn-lbl">Attend</span></a>
+  {% endif %}
+  <a href="{{ url_for('staff.my_attendance') }}" class="bn-item"><span class="bn-ico">👤</span><span class="bn-lbl">Profile</span></a>
+</nav>
+{% else %}
+  {% block public %}{% endblock %}
+{% endif %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% block scripts %}{% endblock %}
+{% if current_user.is_authenticated %}
+<script src="{{ url_for('static', filename='js/push.js') }}" defer></script>
+{% endif %}
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js').catch(function(){});
+  });
+}
+</script>
+
+<script src="{{ url_for('static', filename='js/npt-clock.js') }}"></script>
+
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Company settings{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:600px">
+  <div class="panel-header">Company settings</div>
+  <div class="panel-body">
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label>Company name</label><input name="hotel_name" value="{{ s.hotel_name }}"></div>
+      <div class="form-group"><label>Tagline / division</label><input name="business_name" value="{{ s.business_name }}"></div>
+      <div class="form-group"><label>Address</label><input name="address" value="{{ s.address }}"></div>
+      <div class="form-group"><label>Phone</label><input name="phone" value="{{ s.phone }}"></div>
+      <div class="form-group"><label>Email</label><input name="email" value="{{ s.email or '' }}"></div>
+      <div class="form-group"><label>PAN (optional)</label><input name="pan" value="{{ s.pan or '' }}" placeholder="Enter PAN"></div>
+      <div class="form-group"><label>VAT Number (optional)</label><input name="vat_number" value="{{ s.vat_number or '' }}"></div>
+      <div class="form-group"><label>Currency</label><input name="currency" value="{{ s.currency }}"></div>
+      <div class="form-group"><label>Default day start</label><input name="check_in_time" value="{{ s.check_in_time }}"></div>
+      <div class="form-group"><label>Default day end</label><input name="check_out_time" value="{{ s.check_out_time }}"></div>
+      <div class="form-group"><label>Prepared By Text</label><textarea name="prepared_by_text" rows="3">{{ s.prepared_by_text }}</textarea></div>
+      <h3 style="margin:1.25rem 0 .5rem;font-size:1rem">Attendance geofence (Nepal)</h3>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:.75rem">Staff can only check-in/out within this radius of the company site pin. Outside attempts email staff + admin.</p>
+      <div class="form-group"><label>Office / site latitude</label><input name="attendance_lat" type="number" step="any" value="{{ s.attendance_lat if s.attendance_lat is not none else '' }}" placeholder="e.g. 26.6643"></div>
+      <div class="form-group"><label>Office / site longitude</label><input name="attendance_lng" type="number" step="any" value="{{ s.attendance_lng if s.attendance_lng is not none else '' }}" placeholder="e.g. 87.6335"></div>
+      <div class="form-group"><label>Radius (meters)</label><input name="attendance_radius_m" type="number" min="20" value="{{ s.attendance_radius_m or 200 }}"></div>
+
+      <hr style="margin:1.25rem 0;border:none;border-top:1px solid var(--border)">
+      <h3 style="font-size:1rem;margin-bottom:.75rem">Branding</h3>
+
+      <div class="form-group">
+        <label>Company logo (sidebar, login, PWA splash)</label>
+        <input type="file" name="logo" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml">
+        {% if s.logo_path %}
+        <div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem">
+          <img src="{{ url_for('static', filename=s.logo_path) }}" alt="Logo" style="max-height:56px;max-width:140px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:4px;background:#fff">
+          <small style="color:var(--muted)">Current logo</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Favicon / Signature Mark (small icon, browser tab)</label>
+        <input type="file" name="favicon" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/x-icon,image/svg+xml">
+        {% if s.favicon_path %}
+        <div style="margin-top:.5rem;display:flex;align-items:center;gap:.75rem">
+          <img src="{{ url_for('static', filename=s.favicon_path) }}" alt="Favicon" style="height:32px;width:32px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:2px;background:#fff">
+          <small style="color:var(--muted)">Current favicon</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Authorized Signature Image (optional, on bills)</label>
+        <input type="file" name="signature" accept="image/png,image/jpeg,image/jpg,image/webp">
+        {% if s.signature_path %}
+        <div style="margin-top:.5rem">
+          <img src="{{ url_for('static', filename=s.signature_path) }}" alt="Sign" style="max-height:48px;max-width:160px;object-fit:contain">
+        </div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

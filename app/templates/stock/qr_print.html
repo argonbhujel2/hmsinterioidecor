@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}QR — {{ item.name }}{% endblock %}
+{% block head %}
+<style>
+@media print {
+  .no-print, .sidebar, .topbar, .bottom-nav, .menu-toggle, .alerts { display: none !important; }
+  .app-shell, .main, .content { margin: 0 !important; padding: 0 !important; }
+}
+.qr-card { max-width: 320px; text-align: center; padding: 1.5rem; background: #fff; border-radius: 12px; border: 1px solid var(--border); }
+.qr-card img { width: 220px; height: 220px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="no-print" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+  <button type="button" class="btn btn-primary" onclick="window.print()">🖨 Print QR</button>
+  <a href="{{ url_for('stock.list_items') }}" class="btn btn-outline">Back</a>
+</div>
+<div class="qr-card">
+  <h3 style="margin:0 0 .5rem">{{ item.name }}</h3>
+  {% if item.sku %}<p style="color:var(--muted);margin:0 0 .75rem">SKU: {{ item.sku }}</p>{% endif %}
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data={{ scan_url|urlencode }}" alt="QR code">
+  <p style="margin:.75rem 0 0;font-size:.8rem;color:var(--muted);word-break:break-all">{{ scan_url }}</p>
+  <p style="margin:.35rem 0 0;font-size:.85rem">Scan → enter qty received → stock increases</p>
+</div>
+{% endblock %}

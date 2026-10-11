@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:1rem">Settings</h2>
+<div class="cards">
+  {% if current_user.has_permission('settings.business') %}
+  <a href="{{ url_for('settings.business') }}" class="card" style="text-decoration:none;color:inherit">
+    <div class="label">Company</div>
+    <div class="value" style="font-size:1rem">Name, address, logo, geofence</div>
+  </a>
+  {% endif %}
+  {% if current_user.has_permission('settings.tax') %}
+  <a href="{{ url_for('settings.tax') }}" class="card" style="text-decoration:none;color:inherit">
+    <div class="label">Tax / VAT</div>
+    <div class="value" style="font-size:1rem">Rates for reports</div>
+  </a>
+  {% endif %}
+  {% if current_user.has_permission('settings.payment') %}
+  <a href="{{ url_for('settings.payment_methods') }}" class="card" style="text-decoration:none;color:inherit">
+    <div class="label">Payment methods</div>
+    <div class="value" style="font-size:1rem">Cash, bank, QR wallet</div>
+  </a>
+  {% endif %}
+  {% if current_user.has_permission('settings.system') or current_user.has_permission('settings.business') %}
+  <a href="{{ url_for('settings.working_hours') }}" class="card" style="text-decoration:none;color:inherit">
+    <div class="label">Working hours</div>
+    <div class="value" style="font-size:1rem">Attendance rules</div>
+  </a>
+  {% endif %}
+</div>
+
+{% if current_user.role_code in ('admin', 'super_admin') %}
+<div class="panel" style="margin-top:1.5rem;border-color:#fca5a5">
+  <div class="panel-header" style="color:#b91c1c">Danger zone</div>
+  <div class="panel-body">
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:.75rem">
+      Clear stock movements and/or attendance data. Staff accounts are never deleted here.
+    </p>
+    <a href="{{ url_for('settings.clear_data') }}" class="btn btn-outline" style="border-color:#ef4444;color:#b91c1c">Clear operational data</a>
+  </div>
+</div>
+{% endif %}
+
+{% if current_user.has_permission('settings.system') %}
+<a class="panel" href="{{ url_for('settings.maintenance') }}" style="display:block;padding:1rem;margin-top:1rem;text-decoration:none;color:inherit">
+  <strong>Maintenance mode</strong><br>
+  <span style="color:var(--muted);font-size:.9rem">Pause staff access · show logo on maintenance page</span>
+</a>
+{% endif %}
+{% endblock %}

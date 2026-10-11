@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Receive — {{ item.name }}{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:.25rem">Receive stock</h2>
+<p style="color:var(--muted);margin-bottom:1rem">
+  <strong>{{ item.name }}</strong>
+  {% if item.sku %}· SKU {{ item.sku }}{% endif %}
+  · Current: <strong>{{ item.quantity }} {{ item.unit }}</strong>
+</p>
+<div class="panel" style="max-width:420px">
+  <div class="panel-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Quantity received *</label>
+        <input name="quantity" type="number" step="any" min="0.001" required autofocus placeholder="How many arrived?">
+      </div>
+      <div class="form-group"><label>Reference</label><input name="reference" placeholder="PO / invoice no."></div>
+      <div class="form-group"><label>Note</label><input name="note" placeholder="Optional"></div>
+      <button type="submit" class="btn btn-primary">Add to stock</button>
+      <a href="{{ url_for('stock.scan_page') }}" class="btn btn-outline">Scan another</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

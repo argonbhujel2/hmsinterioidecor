@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Stock Movements{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:1rem">Stock movements</h2>
+<div class="panel">
+  <div class="panel-body table-wrap">
+    <table class="data">
+      <thead><tr><th>When (NPT)</th><th>Item</th><th>Type</th><th>Qty</th><th>Balance</th><th>Ref</th><th>By</th></tr></thead>
+      <tbody>
+      {% for m in movements %}
+        <tr>
+          <td>{{ m.created_at.strftime('%d/%m/%Y %H:%M') if m.created_at else '—' }}</td>
+          <td>{{ m.item.name if m.item else m.item_id }}</td>
+          <td>{{ m.movement_type }}</td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.balance_after }}</td>
+          <td>{{ m.reference or m.note or '—' }}</td>
+          <td>{{ m.created_by.full_name if m.created_by else '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No movements.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

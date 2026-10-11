@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Stock In/Out — {{ item.name }}{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:.25rem">{{ item.name }}</h2>
+<p style="color:var(--muted);margin-bottom:1rem">Current balance: <strong>{{ item.quantity }} {{ item.unit }}</strong></p>
+<div class="panel" style="max-width:480px;margin-bottom:1.25rem">
+  <div class="panel-header">Stock movement</div>
+  <div class="panel-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label>Type</label>
+        <select name="movement_type">
+          <option value="in">Stock IN (purchase / return)</option>
+          <option value="out">Stock OUT (job / sale / use)</option>
+          <option value="adjust">Set absolute quantity</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Quantity *</label><input name="quantity" type="number" step="any" min="0.001" required></div>
+      <div class="form-group"><label>Reference</label><input name="reference" placeholder="PO / Job / Invoice no."></div>
+      <div class="form-group"><label>Note</label><input name="note" placeholder="Optional"></div>
+      <button type="submit" class="btn btn-primary">Save movement</button>
+      <a href="{{ url_for('stock.list_items') }}" class="btn btn-outline">Back</a>
+    </form>
+  </div>
+</div>
+<div class="panel">
+  <div class="panel-header">Recent movements</div>
+  <div class="panel-body table-wrap">
+    <table class="data">
+      <thead><tr><th>When</th><th>Type</th><th>Qty</th><th>Balance</th><th>Ref</th><th>Note</th></tr></thead>
+      <tbody>
+      {% for m in movements %}
+        <tr>
+          <td>{{ m.created_at.strftime('%d/%m/%Y %H:%M') if m.created_at else '—' }}</td>
+          <td>{{ m.movement_type }}</td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.balance_after }}</td>
+          <td>{{ m.reference or '—' }}</td>
+          <td>{{ m.note or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">No movements yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

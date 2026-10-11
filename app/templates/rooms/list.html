@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Rooms{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+  <h2>Rooms</h2>
+  {% if current_user.has_permission('rooms.add') %}
+  <a href="{{ url_for('rooms.add_room') }}" class="btn btn-primary">+ Add Room</a>
+  {% endif %}
+</div>
+<form method="get" style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search..." style="padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px">
+  <select name="status" style="padding:.45rem;border:1px solid var(--border);border-radius:6px">
+    <option value="">All status</option>
+    {% for s in ['available','occupied','reserved','dirty','cleaning','maintenance','disabled'] %}
+    <option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s|title }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-outline btn-sm" type="submit">Filter</button>
+  <a href="{{ url_for('rooms.list_rooms', status='dirty') }}" class="btn btn-outline btn-sm">Dirty only</a>
+</form>
+<div class="panel">
+  <div class="panel-body table-wrap">
+    <table class="data">
+      <thead><tr><th>Number</th><th>Floor</th><th>Type</th><th>Price</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rooms %}
+        <tr>
+          <td><strong>{{ r.number }}</strong></td>
+          <td>{{ r.floor or '—' }}</td>
+          <td>{{ r.room_type or '—' }}</td>
+          <td>Rs. {{ r.price }}</td>
+          <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+          <td style="white-space:nowrap">
+            {% if current_user.has_permission('rooms.status') or current_user.has_permission('rooms.edit') %}
+              {% if r.status in ('dirty', 'cleaning', 'maintenance') %}
+              <form method="post" action="{{ url_for('rooms.mark_cleaning', rid=r.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline btn-sm">Cleaning…</button>
+              </form>
+              <form method="post" action="{{ url_for('rooms.mark_clean', rid=r.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm">Mark clean</button>
+              </form>
+              {% endif %}
+            {% endif %}
+            {% if current_user.has_permission('rooms.edit') %}
+            <a href="{{ url_for('rooms.edit_room', room_id=r.id) }}" class="btn btn-outline btn-sm">Edit</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">No rooms yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

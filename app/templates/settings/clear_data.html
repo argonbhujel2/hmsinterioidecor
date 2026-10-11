@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Clear data{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:.5rem">Clear operational data</h2>
+<p style="color:var(--muted);margin-bottom:1rem">Staff users are kept. Choose what to wipe. Type <strong>CLEAR</strong> to confirm.</p>
+<div class="panel" style="max-width:520px;border-color:#fca5a5">
+  <div class="panel-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label><input type="checkbox" name="clear_stock_movements" value="1" checked> Stock movements (IN/OUT history)</label>
+      </div>
+      <div class="form-group">
+        <label><input type="checkbox" name="clear_stock_qty" value="1"> Reset all stock quantities to 0</label>
+      </div>
+      <div class="form-group">
+        <label><input type="checkbox" name="clear_attendance" value="1"> Attendance records + location logs</label>
+      </div>
+      <div class="form-group">
+        <label>Confirm</label>
+        <input name="confirm" placeholder="Type CLEAR" required autocomplete="off">
+      </div>
+      <button type="submit" class="btn" style="background:#dc2626;color:#fff;border:none">Clear selected</button>
+      <a href="{{ url_for('settings.index') }}" class="btn btn-outline">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

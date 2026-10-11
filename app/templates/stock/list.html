@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Stock{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1rem">
+  <div>
+    <h2 style="margin:0">Stock inventory</h2>
+    <p style="color:var(--muted);margin:.25rem 0 0">{% if low_count %}<span style="color:#b91c1c">{{ low_count }} low stock</span>{% else %}All items{% endif %}</p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    {% if current_user.has_permission('stock.edit') %}
+    <a href="{{ url_for('stock.categories') }}" class="btn btn-outline">Categories</a>
+    <a href="{{ url_for('stock.add_item') }}" class="btn btn-primary">+ Add item</a>
+    {% endif %}
+    <a href="{{ url_for('stock.movements') }}" class="btn btn-outline">Movements</a>
+    {% if current_user.has_permission('stock.edit') %}
+    <a href="{{ url_for('stock.scan_page') }}" class="btn btn-primary">📷 Scan QR</a>
+    {% endif %}
+  </div>
+</div>
+<form method="get" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
+    <input name="q" value="{{ q }}" placeholder="Search name / SKU" style="padding:.45rem;border:1px solid var(--border);border-radius:8px;min-width:180px">
+    <select name="category_id" style="padding:.45rem;border:1px solid var(--border);border-radius:8px">
+      <option value="">All categories</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if cat_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+    <label style="display:flex;align-items:center;gap:.35rem;font-size:.9rem">
+      <input type="checkbox" name="low" value="1" {% if low %}checked{% endif %}> Low stock only
+    </label>
+    <button class="btn btn-primary" type="submit">Filter</button>
+  </div>
+</form>
+<div class="panel">
+  <div class="panel-body table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>SKU</th><th>Name</th><th>Category</th><th>Qty</th><th>Unit</th><th>Reorder</th><th>Location</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for i in items %}
+        <tr {% if i.is_low %}style="background:#fef2f2"{% endif %}>
+          <td>{{ i.sku or '—' }}</td>
+          <td><strong>{{ i.name }}</strong>{% if i.is_low %} <span class="badge" style="background:#7f1d1d;color:#fecaca">LOW</span>{% endif %}</td>
+          <td>{{ i.category.name if i.category else '—' }}</td>
+          <td>{{ i.quantity }}</td>
+          <td>{{ i.unit }}</td>
+          <td>{{ i.reorder_level }}</td>
+          <td>{{ i.location or '—' }}</td>
+          <td style="white-space:nowrap">
+            {% if current_user.has_permission('stock.edit') %}
+            <a href="{{ url_for('stock.move_stock', iid=i.id) }}">In/Out</a>
+            · <a href="{{ url_for('stock.item_qr', iid=i.id) }}">QR</a>
+            · <a href="{{ url_for('stock.edit_item', iid=i.id) }}">Edit</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">No stock items yet. Add gypsum boards, ceiling materials, accessories…</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

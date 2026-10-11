@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Permissions · {{ user.full_name }}{% endblock %}
+{% block content %}
+<h2>Permissions — {{ user.full_name }}</h2>
+<p style="color:var(--muted);margin-bottom:1rem">
+  Role: <strong>{{ user.role.name if user.role else '—' }}</strong>.
+  Role defaults are locked. Extra grants beyond role can be selected.
+</p>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="panel">
+    <div class="panel-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.5rem">
+      {% set labels = {
+        'dashboard.view': 'View dashboard',
+        'stock.view': 'View stock inventory',
+        'stock.edit': 'Add/edit stock, QR scan, stock in-out',
+        'staff.view': 'View staff list',
+        'staff.add': 'Add staff',
+        'staff.edit': 'Edit staff profile',
+        'staff.disable': 'Enable / disable staff',
+        'staff.reset_pw': 'Reset staff password',
+        'staff.role': 'Change staff role',
+        'staff.permissions': 'Edit staff extra permissions',
+        'staff.salary': 'Manage staff salary profile',
+        'attendance.view': 'View attendance',
+        'attendance.approve': 'Approve attendance',
+        'leave.view': 'View leave',
+        'leave.approve': 'Approve leave',
+        'break.view': 'View breaks',
+        'break.approve': 'Approve breaks',
+        'overtime.view': 'View overtime',
+        'overtime.approve': 'Approve overtime',
+        'salary.view': 'View salary / payslip',
+        'salary.create': 'Create / finalize payroll',
+        'salary.edit': 'Edit payroll',
+        'salary.payment': 'Record salary payment',
+        'salary.increment': 'Salary increment',
+        'salary.deduction': 'Salary deduction',
+        'salary.consumption': 'Staff consumption',
+        'salary.fine': 'Fines',
+        'salary.advance': 'Salary advance',
+        'salary.reports': 'Salary reports',
+        'sessions.view': 'View login sessions',
+        'sessions.force_logout': 'Force logout sessions',
+        'settings.view': 'View settings',
+        'settings.business': 'Edit company settings',
+        'settings.tax': 'Edit tax settings',
+        'settings.payment': 'Payment settings',
+        'settings.system': 'System settings',
+        'audit.view': 'View activity log',
+        'audit.export': 'Export audit log',
+        'reports.view': 'View reports',
+        'reports.export': 'Export reports'
+      } %}
+      {% for p in all_perms %}
+      <label style="font-size:.85rem;display:flex;gap:.4rem;align-items:flex-start;padding:.35rem;border:1px solid var(--border);border-radius:8px">
+        <input type="checkbox" name="perm" value="{{ p.id }}" style="margin-top:.2rem"
+          {% if p.id in role_perm_ids or extra.get(p.id) %}checked{% endif %}
+          {% if p.id in role_perm_ids %}disabled{% endif %}>
+        <span>
+          <strong>{{ labels.get(p.code, p.code) }}</strong>
+          <div style="font-size:.75rem;color:var(--muted)">{{ p.code }}</div>
+          {% if p.id in role_perm_ids %}<small style="color:var(--muted)">(from role)</small>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save Extra Permissions</button>
+  <a href="{{ url_for('staff.list_staff') }}" class="btn btn-outline">Back</a>
+</form>
+{% endblock %}

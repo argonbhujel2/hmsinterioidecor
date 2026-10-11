@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit{% else %}Add{% endif %} Stock Item{% endblock %}
+{% block content %}
+<h2 style="margin-bottom:1rem">{% if item %}Edit item{% else %}Add stock item{% endif %}</h2>
+<div class="panel" style="max-width:560px">
+  <div class="panel-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label>Name *</label><input name="name" required value="{{ item.name if item else '' }}" placeholder="e.g. Gypsum Board 12mm"></div>
+      <div class="form-group"><label>SKU</label><input name="sku" value="{{ item.sku if item and item.sku else '' }}" placeholder="Optional code"></div>
+      <div class="form-group"><label>Category</label>
+        <select name="category_id">
+          <option value="">—</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}" {% if item and item.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>Unit</label>
+        <select name="unit">
+          {% for u in ['pcs','sheet','bag','m','sqft','box','kg','roll'] %}
+          <option value="{{ u }}" {% if item and item.unit==u %}selected{% elif not item and u=='sheet' %}selected{% endif %}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if not item %}
+      <div class="form-group"><label>Opening quantity</label><input name="quantity" type="number" step="any" value="0"></div>
+      {% endif %}
+      <div class="form-group"><label>Reorder level</label><input name="reorder_level" type="number" step="any" value="{{ item.reorder_level if item else 10 }}"></div>
+      <div class="form-group"><label>Cost price (Rs.)</label><input name="cost_price" type="number" step="any" value="{{ item.cost_price if item else 0 }}"></div>
+      <div class="form-group"><label>Sell price (Rs.)</label><input name="sell_price" type="number" step="any" value="{{ item.sell_price if item else 0 }}"></div>
+      <div class="form-group"><label>Location</label><input name="location" value="{{ item.location if item and item.location else '' }}" placeholder="Warehouse / shelf"></div>
+      <div class="form-group"><label>Notes</label><textarea name="notes" rows="2">{{ item.notes if item and item.notes else '' }}</textarea></div>
+      {% if item %}
+      <div class="form-group"><label><input type="checkbox" name="is_active" value="1" {% if item.is_active %}checked{% endif %}> Active</label></div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a href="{{ url_for('stock.list_items') }}" class="btn btn-outline">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}
